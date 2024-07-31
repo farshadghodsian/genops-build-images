@@ -1,0 +1,52 @@
+#
+# AMD ROCm 6.1.3 supported Pytorch Notebook with sudo permissions
+# 
+# docker build -t farshadg99/rocm-notebook:latest -t farshadg99/rocm-notebook:rocm6.1.3 -f rocm-notebook.Dockerfile .
+#
+
+# Base image for fix to the following issue that was causing problems with running JupyterLab: https://github.com/kubeflow/kubeflow/pull/7622
+FROM ghcr.io/thesuperzapper/kubeflow/notebook-servers/jupyter-scipy:sha-665708b0ad39da0f2a152a2aec860726c01ab160
+ENV NB_USER=jovyan
+
+USER root
+
+# Install sudo
+RUN apt update && \
+    apt install sudo
+
+# Adding user to sudoers set correct permissions
+RUN echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" | tee /etc/sudoers.d/${NB_USER} && \
+    chmod 0440 /etc/sudoers.d/${NB_USER}
+
+#  and adding current user to Video and Render groups
+RUN apt install -y "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
+
+
+# Install AMD ROCm
+RUN wget https://repo.radeon.com/amdgpu-install/6.1.2/ubuntu/jammy/amdgpu-install_6.1.60102-1_all.deb && \
+    apt install -y ./amdgpu-install_6.1.60102-1_all.deb && \
+    apt update
+    
+RUN apt install -y amdgpu-dkms rocm
+    #apt install -y rocm-hip-libraries && \
+
+# Install nvtop
+# RUN apt add-apt-repository ppa:flexiondotorg/nvtop -y && \
+#     apt install -y nvtop
+
+# Install Pytoch+ROCm5.7 Nightly
+RUN pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.1
+
+ADD run /etc/services.d/jupyterlab/run
+    
+#RUN chown $NB_USER:users /etc/services.d/jupyterlab/run && \
+RUN usermod -a -G render,video $NB_USER && \
+    chmod +x /var/run/service/jupyterlab/run 
+
+USER $NB_UID
+
+# For RDNA3 Radeon Pro W7900 GPU or Radeon 7900 XTX & XT
+ENV AMDGPU_TARGETS="gfx1100"
+ENV HSA_OVERRIDE_GFX_VERSION=11.0.0
+
+EXPOSE 8888

@@ -1,0 +1,37 @@
+#
+# AMD ROCm 5.7 supported Pytorch Notebook with sudo permissions
+#
+
+FROM kubeflownotebookswg/jupyter-scipy
+ENV NB_USER=jovyan
+
+USER root
+
+# Install sudo
+RUN apt update && \
+    apt install sudo
+
+# Adding user to sudoers set correct permissions
+RUN echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" | tee /etc/sudoers.d/${NB_USER} && \
+    chmod 0440 /etc/sudoers.d/${NB_USER}
+
+# Install AMD ROCm, nvtop and adding current user to Video and Render groups
+RUN apt install -y "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)" && \
+    wget https://repo.radeon.com/amdgpu-install/6.0/ubuntu/jammy/amdgpu-install_6.0.60000-1_all.deb && \
+    apt install -y ./amdgpu-install_6.0.60000-1_all.deb && \
+    apt update && \
+    apt install -y amdgpu-dkms && \
+    apt install -y rocm-hip-libraries && \
+    apt install -y nvtop
+
+# Install Pytoch+ROCm5.7 Nightly
+RUN pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm5.7
+
+ADD run /etc/services.d/jupyterlab/run 
+
+USER $NB_UID
+
+ENV AMDGPU_TARGETS="gfx1030"
+ENV HSA_OVERRIDE_GFX_VERSION=10.3.0
+
+EXPOSE 8888
