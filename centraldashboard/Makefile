@@ -1,5 +1,5 @@
 IMG ?= centraldashboard
-TAG ?= $(shell git describe --tags --always)
+TAG ?= v1.9.0-rc.0#$(shell git describe --tags --always)
 COMMIT = $(shell git rev-parse HEAD)
 DOCKERFILE ?= Dockerfile
 ARCH ?= linux/amd64
@@ -28,7 +28,7 @@ docker-build:
 	@echo Built $(IMG):$(TAG)
 
 docker-push:
-	docker push $(IMG):$(TAG)
+	docker push farshadg99/$(IMG):$(TAG)
 
 .PHONY: docker-build-multi-arch
 docker-build-multi-arch: ##  Build multi-arch docker images with docker buildx
